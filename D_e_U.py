@@ -1,10 +1,10 @@
 import torch
-
+from data_new import *
 from torch import nn
 from torch.nn import init
 import torch.nn.functional as F
 from torch.autograd import Variable
-
+from config import *
 
 
 # vgg choice
@@ -133,34 +133,34 @@ class DeconvBlock(torch.nn.Module):
 class D_U(nn.ModuleList):
     def __init__(self):
         super(D_U,self).__init__()
-        self.up = []
-        self.up.append(DeconvBlock(input_size=512,output_size=256,batch_norm=True))
-        self.up.append(DeconvBlock(input_size=512, output_size=256, batch_norm=True))
-        self.up.append(DeconvBlock(input_size=512,output_size=128,batch_norm=True))
-        self.up.append(DeconvBlock(input_size=256,output_size=128,batch_norm=True))
-        self.extract  = []
+        #self.up = []
+        self.up0=DeconvBlock(input_size=512,output_size=256,batch_norm=True)
+        self.up1=DeconvBlock(input_size=512, output_size=256, batch_norm=True)
+        self.up2=DeconvBlock(input_size=512,output_size=128,batch_norm=True)
+        self.up3=DeconvBlock(input_size=256,output_size=128,batch_norm=True)
 
-        self.extract.append(nn.ConvTranspose2d(256, 1, 1, 8,8))
-        self.discrim=nn.ConvTranspose2d(256,1,4,2,2)
 
-        self.extract.append(nn.ConvTranspose2d(256, 1, 1, 4,4))
-        self.extract.append(nn.ConvTranspose2d(128, 1, 1, 2, 2))
-        self.extract.append(nn.ConvTranspose2d(128, 1, 1, 2, 2))
-        self.extract.append(nn.Conv2d(256,1,1,1,1))
+        self.extract0=nn.ConvTranspose2d(256, 1,  8,8)
+        self.discrim=nn.ConvTranspose2d(256,1,4,4)
+
+        self.extract1 =nn.ConvTranspose2d(256, 1, 4,4)
+        self.extract2 = nn.ConvTranspose2d(128, 1, 2, 2)
+        self.extract3 =nn.ConvTranspose2d(128, 1,  1, 1)
+        self.extract4 = nn.Conv2d(256,1,1,1)
 
     def forward(self, features):
         mask = []
         x = features[4]
-        x1 = self.up[0](x)
-        mask.append(self.extract[0](x1))
+        x1 = self.up0(x)
+        mask.append(nn.Sigmoid()(self.extract0(x1)))
         DIC = self.discrim(x1)
-        x2 = self.up[1](torch.cat([features[3],x1],1))
-        mask.append(self.extract[1](x2))
-        x3 = self.up[2](torch.cat([features[2],x2],1))
-        mask.append(self.extract[2](x3))
-        x4 = self.up[3](torch.cat([features[1],x3],1))
-        mask.append(self.extract[3](x4))
-        mask.append(self.extract[4](torch.cat([features[0],x4],1)))
+        x2 = self.up1(torch.cat([features[3],x1],1))
+        mask.append(nn.Sigmoid()(self.extract1(x2)))
+        x3 = self.up2(torch.cat([features[2],x2],1))
+        mask.append(nn.Sigmoid()(self.extract2(x3)))
+        x4 = self.up3(torch.cat([features[1],x3],1))
+        mask.append(nn.Sigmoid()(self.extract3(x4)))
+        mask.append(nn.Sigmoid()(self.extract4(torch.cat([features[0],x4],1))))
 
         return mask,DIC
 
@@ -186,18 +186,18 @@ class DSS(nn.Module):
         self.base = nn.ModuleList(base)
         self.feat = nn.ModuleList(feat_layers)
 
-        self.up =[]
-        self.up2  = []
+        self.up =nn.ModuleList()
+        self.up2  = nn.ModuleList()
         self.up.append(nn.Conv2d(1,1,1))
 
-        k = 2
+        k = 2.
         for i  in range(5):
             self.up.append(nn.ConvTranspose2d(1, 1, k,k))
             k = 2 * k
 
         self.up2.append(nn.Conv2d(1, 1, 1))
 
-        k2 = 2
+        k2 = 2.
         for i in range(5):
             self.up2.append(nn.ConvTranspose2d(1, 1, k2, k2))
             k2 = 2 * k2
@@ -230,9 +230,12 @@ class DSS(nn.Module):
 
         for i in range(6):
             y1[i] = self.up[i](y1[i])
+            y1[i] = nn.Sigmoid()(y1[i])
+            #print(1,y1[i].size())
 
         for i in range(6):
             y2[i] = self.up2[i](y2[i])
+            y2[i] = nn.Sigmoid()(y2[i])
             #print(i)
 
 
@@ -261,7 +264,7 @@ def initialize_weights(net):
 class DSE(nn.Module):
     def __init__(self):
         super(DSE, self).__init__()
-        self.net = DSS(*extra_layer(vgg(base['dss'], 3), extra['dss']),nums =1)
+        self.net = DSS(*extra_layer(vgg(base['dss'], 3), extra['dss']),nums =BATCH_SIZE)
 
     def forward(self, input):
         x = self.net(input)
@@ -272,14 +275,20 @@ class DSE(nn.Module):
 
 if __name__ == '__main__':
     net = DSE()
+    net.train()
+    net.cuda()
 
-    net2 = D_U()
+
+    net2 = D_U().cuda()
 
 
-    x = Variable(torch.rand(1,3,256,256))
+
+    x = Variable(torch.rand(1,3,256,256)).cuda()
     (out,y1,y2) = net(x)
     re,T = net2(out)
     print(len(re))
+    for i in range(5):
+        print(re[i].size())
     print(out[0].size())
     print(len(out))
 
