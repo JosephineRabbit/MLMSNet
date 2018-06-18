@@ -78,6 +78,52 @@ def extra_layer(vgg, cfg):
     return vgg, feat_layers
 
 
+
+class Generator(torch.nn.Module):
+    def __init__(self, input_dim, num_filter, output_dim):
+        super(Generator, self).__init__()
+
+        # Decoder
+        self.linear = nn.Linear(100,1024)
+        self.deconv1 = DeconvBlock(num_filter * 8, num_filter * 8, dropout=True)
+        #self.deconv2 = DeconvBlock(num_filter * 8 * 2, num_filter * 8, dropout=True)
+        #self.deconv3 = DeconvBlock(num_filter * 8 * 2, num_filter * 8, dropout=True)
+        #self.deconv4 = DeconvBlock(num_filter * 8 * 2, num_filter * 8)
+        self.deconv2 = DeconvBlock(num_filter * 8 * 2, num_filter * 4)
+        self.deconv3 = DeconvBlock(num_filter * 4 * 2, num_filter * 2)
+        self.deconv4 = DeconvBlock(num_filter * 2 * 2, num_filter)
+        self.deconv5 = DeconvBlock(num_filter * 2, output_dim, batch_norm=False)
+
+    def forward(self, x):
+        # Encoder
+        enc1 = self.conv1(x)
+        enc2 = self.conv2(enc1)
+        enc3 = self.conv3(enc2)
+        enc4 = self.conv4(enc3)
+        enc5 = self.conv5(enc4)
+        #enc6 = self.conv6(enc5)
+        #enc7 = self.conv7(enc6)
+        #enc8 = self.conv8(enc7)
+        # Decoder with skip-connections
+        dec1 = self.deconv1(enc5)
+        dec1 = torch.cat([dec1, enc4], 1)
+        dec2 = self.deconv2(dec1)
+        dec2 = torch.cat([dec2, enc3], 1)
+        dec3 = self.deconv3(dec2)
+        dec3 = torch.cat([dec3, enc2], 1)
+        dec4 = self.deconv4(dec3)
+        dec4 = torch.cat([dec4, enc1], 1)
+        dec5 = self.deconv5(dec4)
+        #dec5 = torch.cat([dec5, enc3], 1)
+        #dec6 = self.deconv6(dec5)
+        #dec6 = torch.cat([dec6, enc2], 1)
+        #dec7 = self.deconv7(dec6)
+        #dec7 = torch.cat([dec7, enc1], 1)
+        #dec8 = self.deconv8(dec7)
+        out = torch.nn.Sigmoid()(dec5)
+        return out
+
+
 class ResidualBlock(nn.Module):
     """
     Residual Block
@@ -149,20 +195,20 @@ class D_U(nn.ModuleList):
         self.extract4 = nn.Conv2d(256,1,1,1)
 
     def forward(self, features):
-        mask = []
+        mask,e = [],[]
         x = features[4]
         x1 = self.up0(x)
         mask.append(nn.Sigmoid()(self.extract0(x1)))
         DIC = self.discrim(x1)
         x2 = self.up1(torch.cat([features[3],x1],1))
-        mask.append(nn.Sigmoid()(self.extract1(x2)))
+        e.append(nn.Sigmoid()(self.extract1(x2)))
         x3 = self.up2(torch.cat([features[2],x2],1))
         mask.append(nn.Sigmoid()(self.extract2(x3)))
         x4 = self.up3(torch.cat([features[1],x3],1))
-        mask.append(nn.Sigmoid()(self.extract3(x4)))
+        e.append(nn.Sigmoid()(self.extract3(x4)))
         mask.append(nn.Sigmoid()(self.extract4(torch.cat([features[0],x4],1))))
 
-        return mask,DIC
+        return mask,e,DIC
 
 
 
@@ -209,7 +255,7 @@ class DSS(nn.Module):
 
 
     def forward(self, x, label=None):
-        prob, y, y1, y2,num = list(),list(),list(),list(), 0
+        m,e, prob, y, y1, y2,num = [],[],list(),list(),list(),list(), 0
         for k in range(len(self.base)):
 
             x = self.base[k](x)
@@ -228,20 +274,20 @@ class DSS(nn.Module):
         y1.append(self.feat[num](self.pool(x))[1])
         y2.append(self.feat[num](self.pool2(x))[2])
 
-        for i in range(6):
-            y1[i] = self.up[i](y1[i])
-            y1[i] = nn.Sigmoid()(y1[i])
+        for i in range(3):
+            e.append(self.up[2*i](y1[2*i]))
+            e[i] = nn.Sigmoid()(e[i])
             #print(1,y1[i].size())
 
-        for i in range(6):
-            y2[i] = self.up2[i](y2[i])
-            y2[i] = nn.Sigmoid()(y2[i])
+        for i in range(3):
+            m.append(self.up2[2*i+1](y2[2*i+1]))
+            m[i] = nn.Sigmoid()(m[i])
             #print(i)
 
 
 
 
-        return (y,y1,y2)
+        return (y,m,e)
 
 
 
@@ -285,10 +331,10 @@ if __name__ == '__main__':
 
     x = Variable(torch.rand(1,3,256,256)).cuda()
     (out,y1,y2) = net(x)
-    re,T = net2(out)
-    print(len(re))
-    for i in range(5):
-        print(re[i].size())
+    m,e,T = net2(out)
+    print(len(e))
+
+
     print(out[0].size())
     print(len(out))
 
