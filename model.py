@@ -62,12 +62,9 @@ class FeatLayer(nn.Module):
         super(FeatLayer, self).__init__()
         #print("side out:", "k",k)
         self.conv1 = nn.Sequential(nn.Conv2d(in_channel,channel,k,1,k//2), nn.ReLU(inplace=True))
-        if in_channel>128:
-            vv = 3*21
-        else:
-            vv = 2*21
-        self.conv_e = nn.Sequential(nn.Conv2d(vv+channel,channel,k,1,k//2), nn.ReLU(inplace=True))
-        self.conv_s = nn.Sequential(nn.Conv2d(channel,channel,k,1,k//2), nn.ReLU(inplace=True),nn.Dropout())
+
+        self.conv_e = nn.Sequential(nn.Conv2d(1+channel,channel,k,1,k//2), nn.ReLU(inplace=True),nn.Dropout())
+
 
         self.o1_s = nn.Conv2d(channel, 1, 1, 1)
 
@@ -80,11 +77,10 @@ class FeatLayer(nn.Module):
         y_e = self.conv_e(torch.cat([y,f_e],1))
         e_s = self.o1_s(y_e)
         e = self.o1(y_e)
-        y_s = self.conv_s(y)
-        s = self.o2(y_s)
 
 
-        return (y_e,e_s,e,s)
+
+        return (y_e,e_s,e)
 
 class Edge_featlayer_2(nn.Module):
     def __init__(self,in_channel,channel):
@@ -100,7 +96,7 @@ class Edge_featlayer_2(nn.Module):
          y1 = torch.cat([y1,y2],1)
          y2 = self.merge(y1)
 
-         return y2,y1
+         return y2
 
 class Edge_featlayer_3(nn.Module):
     def __init__(self, in_channel, channel):
@@ -118,9 +114,7 @@ class Edge_featlayer_3(nn.Module):
         y1 = torch.cat([y1, y2,y3], 1)
         y2 = self.merge(y1)
 
-        return y2,y1
-
-
+        return y2
 
 def e_extract_layer():
     e_feat_layers = []
@@ -132,30 +126,22 @@ def e_extract_layer():
 
     return e_feat_layers
 
-
-
 # extra part
 def extra_layer(vgg, cfg):
     feat_layers, concat_layers, concat_layers_2, scale = [], [],[], 1
 
-    for k, v in enumerate(cfg):
-        #print("k:", k)
-        if v[2] == 7:
-            feat_layers+=[FeatLayer_last(v[0],v[1],v[2])]
-        else:
-            feat_layers += [FeatLayer(v[0], v[1], v[2])]
+    feat_layers += [FeatLayer(64, 128, 3)]
+    feat_layers += [FeatLayer(128, 128, 3)]
+    feat_layers += [FeatLayer(256, 256, 5)]
+    feat_layers += [FeatLayer(512, 256, 5)]
+    feat_layers += [FeatLayer(512,512,5)]
+    feat_layers += [FeatLayer_last(512, 512, 7)]
 
 
-        scale *= 2
+
 
 
     return vgg, feat_layers
-
-
-
-
-
-
 
 class DeconvBlock(torch.nn.Module):
     def __init__(self, input_size, output_size, kernel_size=4, stride=2, padding=1, batch_norm=False, dropout=False):
@@ -177,7 +163,6 @@ class DeconvBlock(torch.nn.Module):
             return self.drop(out)
         else:
             return out
-
 
 class D_U(nn.ModuleList):
     def __init__(self):
@@ -217,10 +202,6 @@ class D_U(nn.ModuleList):
 
 
 
-
-
-
-
 # DSS network
 class DSS(nn.Module):
     def __init__(self, base, feat_layers, e_feat_layers, nums):
@@ -228,7 +209,7 @@ class DSS(nn.Module):
         self.extract = [3, 8, 15, 22, 29]
         self.e_extract = [1,3,6,8,11,13,15,18,20,22,25,27,29]
         #print('------connect',connect)
-        self.n=nums
+
         self.base = nn.ModuleList(base)
         self.feat = nn.ModuleList(feat_layers)
         self.e_feat =nn.ModuleList(e_feat_layers)
@@ -246,7 +227,7 @@ class DSS(nn.Module):
             k = 2 * k
 
         k1 = 1.
-        for i in range(5):
+        for i in range(6):
             self.up1.append(nn.ConvTranspose2d(1, 1, k1, k1))
             k1 = 2 * k1
 
@@ -265,36 +246,36 @@ class DSS(nn.Module):
 
 
 
-    def forward(self, x, label=None):
+    def forward(self, x1,x2):
         #print(self.e_feat)
 
-        xx,edges,edge_features,m,ee, prob, y, y1,y2,y3, num =[], [], [],[],[],[],[],[],[],[], 0
+        xx2,es,eed, ss,xx,edges,y, y1,y2,y3, num =[],[], [], [],[],[],[],[],[],[], 0
         for k in range(len(self.base)):
             #print(k)
 
-            x = self.base[k](x)
+            x1 = self.base[k](x1)
 
             if k in self.e_extract:
-                xx.append(x)
+                xx.append(x1)
             #edges.append()
             #print(k,x.size())
             if k in self.extract:
                 if num<2:
 
-                    (edge,ed_f) =self.e_feat[num](xx[2*num],xx[2*num+1])
+                    edge =self.e_feat[num](xx[2*num],xx[2*num+1])
 
                 else:
-                    (edge,ed_f) = self.e_feat[num](xx[num*3-2],xx[num*3-1],xx[num*3])
+                    edge = self.e_feat[num](xx[num*3-2],xx[num*3-1],xx[num*3])
 
 
-                edges.append(edge)
+                #edges.append(edge)
 
 
-                (y_e,e_s,e,s)=self.feat[num](x,ed_f)
+                (y_e,e_s,e)=self.feat[num](x1,edge)
                 y.append(y_e)
                 y1.append(e_s)
                 y2.append(e)
-                y3.append(s)
+
 
 
                 num += 1
@@ -302,24 +283,44 @@ class DSS(nn.Module):
         #print(len(y3))
 
 
-        y.append(self.feat[num](self.pool(x))[0])
-        y3.append(self.feat[num](self.pool(x))[1])
-        #y2.append(self.feat[num](self.pool2(x))[2])
+        a,b=self.feat[num](self.pool(x1))
+        y.append(a)
+        y1.append(b)
 
+        num=0
+        for k in range(len(self.base)):
+            #print(k)
+
+            x2 = self.base[k](x2)
+
+            if k in self.e_extract:
+                xx2.append(x2)
+            #edges.append()
+            #print(k,x.size())
+            if k in self.extract:
+                if num<2:
+
+                    edge =self.e_feat[num](xx2[2*num],xx2[2*num+1])
+
+                else:
+                    edge = self.e_feat[num](xx2[num*3-2],xx2[num*3-1],xx2[num*3])
+
+
+                edges.append(edge)
+                num+=1
 
 
         for i in range(5):
             edges[i] = self.up[i](edges[i])
 
 
-            y1[i] = self.up1[i](y1[i])
-            y1[i] = nn.Sigmoid()(y1[i])
+            es.append(self.up1[i](y1[i]))
+            es[i] = nn.Sigmoid()(es[i])
 
-            y2[i] = self.up2[i](y2[i])
-            y2[i] = nn.Sigmoid()(y2[i])
+            eed.append(self.up2[i](y2[i]))
+            eed[i] = nn.Sigmoid()(eed[i])
 
-            y3[i] = self.up3[i](y3[i])
-            y3[i] = nn.Sigmoid()(y3[i])
+
 
         e_f = torch.cat([edges[0], edges[1], edges[2], edges[3], edges[4]], 1)
         edges.append(self.fuse(e_f))
@@ -327,15 +328,15 @@ class DSS(nn.Module):
         for i in range(6):
             edges[i]=nn.Sigmoid()(edges[i])
 
-        y3[5] = self.up3[5](y3[5])
-        y3[5] = nn.Sigmoid()(y3[5])
+        es.append(self.up1[5](y1[5]))
+        es[5]=nn.Sigmoid()(es[5])
 
             #print(i)
 
 
 
 
-        return (y,edges,y1,y2,y3)
+        return (y,edges,es,eed)
 
 
 
@@ -360,8 +361,8 @@ class DSE(nn.Module):
         super(DSE, self).__init__()
         self.net = DSS(*extra_layer(vgg(base['dss'], 3), extra['dss']),e_extract_layer(),nums =BATCH_SIZE)
 
-    def forward(self, input):
-        x = self.net(input)
+    def forward(self, input1,input2):
+        x = self.net(input1,input2)
         return x
 
 
@@ -377,10 +378,14 @@ if __name__ == '__main__':
 
 
     x = Variable(torch.rand(1,3,256,256)).cuda()
-    (out,edges,e_s,e,s) = net(x)
-    for i in edges:
-        print(i.shape)
+    x2 = Variable(torch.rand(1,3,256,256)).cuda()
+    (out,edges,e_s,e) = net(x,x2)
+
+
     m,e = net2(out)
+
+    for i in e:
+        print(i.shape)
     #print(net.net.base)
     #print(len(e))
 
