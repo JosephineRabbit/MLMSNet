@@ -290,7 +290,7 @@ class D_U(nn.ModuleList):
 
         x4 = self.up3(torch.cat([features[1],x3],1))
         SAL_M.append(nn.Sigmoid()(self.extract3_sal_m(torch.cat([features[0],x4],1))))
-        SEG_M.append(nn.functional.softmax(self.extract3_seg_m(torch.cat([features[0],x4], 1)),1))
+        SEG_M.append(nn.functional.softmax(self.extract3_seg_m(torch.cat([features[0],x4],1)),1))
 
 
         return SAL_E,SAL_M,SEG_M
@@ -356,143 +356,197 @@ class DSS(nn.Module):
 
 
 
-    def forward(self, x1,x2,x3):
+    def forward(self, x1,label):
         #print(self.e_feat)
 
         SEG_M, SEG_E, FF, SEG_SAL_M, xx2, xx3, xx, EDGES, SAL_E, SAL_M =[],[],[],[],[],[],[],[],[],[]
-        num = 0
-        for k in range(len(self.base)):
-            #print(k)
 
-            x1 = self.base[k](x1)
-
-            if k in self.e_extract:
-                xx.append(x1)
-            #edges.append()
-            #print(k,x.size())
-            if k in self.extract:
-                if num<2:
-
-                    edge =self.e_feat[num](xx[2*num],xx[2*num+1])
-
-                else:
-                    edge = self.e_feat[num](xx[num*3-2],xx[num*3-1],xx[num*3])
-
-                #edges.append(edge)
+        #####seg
 
 
-                (Y,seg_ed,seg_m,sal_m)=self.seg_feat[num](x1,edge)
-                FF.append(Y)
-                SEG_E.append(seg_ed)
-                SEG_M.append(seg_m)
-                SEG_SAL_M.append(sal_m)
+        if label =='seg':
 
+            num = 0
 
+            for k in range(len(self.base)):
+                #print(k)
 
-                num += 1
-        # side output
-        #print(len(y3))
+                x1 = self.base[k](x1)
 
+                if k in self.e_extract:
+                    xx.append(x1)
+                #edges.append()
+                #print(k,x.size())
+                if k in self.extract:
+                    if num<2:
 
-        a,b,c=self.seg_feat[num](self.pool(x1))
-        FF.append(a)
-        SEG_M.append(b)
-        SEG_SAL_M.append(c)
+                        edge =self.e_feat[num](xx[2*num],xx[2*num+1])
 
-        num=0
-        for k in range(len(self.base)):
-            #print(k)
+                    else:
+                        edge = self.e_feat[num](xx[num*3-2],xx[num*3-1],xx[num*3])
 
-            x2 = self.base[k](x2)
+                    #edges.append(edge)
 
-            if k in self.e_extract:
-                xx2.append(x2)
-            #edges.append()
-            #print(k,x.size())
-            if k in self.extract:
-                if num<2:
+                    EDGES.append(edge)
+                    (Y,seg_ed,seg_m,sal_m)=self.seg_feat[num](x1,edge)
+                    (s_e, s_m) = self.sal_feat[num](x1, seg_ed)
 
-                    edge =self.e_feat[num](xx2[2*num],xx2[2*num+1])
-
-                else:
-                    edge = self.e_feat[num](xx2[num*3-2],xx2[num*3-1],xx2[num*3])
-
-
-                EDGES.append(edge)
-                num+=1
+                    FF.append(Y)
+                    SEG_E.append(seg_ed)
+                    SEG_M.append(seg_m)
+                    SEG_SAL_M.append(sal_m)
+                    SAL_M.append(s_m)
 
 
 
-
-        num=0
-        for k in range(len(self.base)):
-            x3 = self.base[k](x3)
-
-            if k in self.e_extract:
-                xx3.append(x3)
-            # edges.append()
-            # print(k,x.size())
-            if k in self.extract:
-                if num < 2:
-
-                    edge = self.e_feat[num](xx3[2 * num], xx3[2 * num + 1])
-
-                else:
-                    edge = self.e_feat[num](xx3[num * 3 - 2], xx3[num * 3 - 1], xx3[num * 3])
-
-                # edges.append(edge)
+                    num += 1
+            # side output
+            #print(len(y3))
 
 
-                (Y, seg_ed, seg_m, sal_m) = self.seg_feat[num](x3, edge)
-                (s_e,s_m) = self.sal_feat[num](x3,seg_ed)
+            a,b,c=self.seg_feat[num](self.pool(x1))
+            FF.append(a)
+            SEG_M.append(b)
+            SEG_SAL_M.append(c)
+            a, b = self.sal_feat[num](self.pool(x1))
+            #SAL_E.append(a)
+            SAL_M.append(b)
 
-                SAL_E.append(s_e)
-                SAL_M.append(s_m)
 
-                num+=1
+            for i in range(6):
+
+                if i <5:
 
 
-        a,b = self.sal_feat[num](self.pool(x3))
-        SAL_E.append(a)
-        SAL_M.append(b)
+                    SEG_E[i]=self.up3[i](SEG_E[i])
+                    SEG_E[i]=nn.Sigmoid()(SEG_E[i])
 
 
 
-        for i in range(6):
+                SAL_M[i]=self.up2[i](SAL_M[i])
+                SAL_M[i] = nn.Sigmoid()(SAL_M[i])
 
-            if i <5:
+                SEG_SAL_M[i] = self.up5[i](SEG_SAL_M[i])
+                SEG_SAL_M[i] = nn.Sigmoid()(SEG_SAL_M[i])
+
+                SEG_M[i] = self.up4[i](SEG_M[i])
+                SEG_M[i] = nn.functional.softmax(SEG_M[i],dim=1)
+
+            return FF,SEG_M,SEG_E,SEG_SAL_M,SAL_M
+
+
+        ###########edge
+
+        if label=='edge':
+            num=0
+            for k in range(len(self.base)):
+                #print(k)
+
+                x2 = self.base[k](x2)
+
+                if k in self.e_extract:
+                    xx2.append(x2)
+                #edges.append()
+                #print(k,x.size())
+                if k in self.extract:
+                    if num<2:
+
+                        edge =self.e_feat[num](xx2[2*num],xx2[2*num+1])
+
+                    else:
+                        edge = self.e_feat[num](xx2[num*3-2],xx2[num*3-1],xx2[num*3])
+
+
+                    EDGES.append(edge)
+                    num+=1
+
+            for i in range(5):
+
                 EDGES[i] = self.up[i](EDGES[i])
 
-                SEG_E[i]=self.up3[i](SEG_E[i])
-                SEG_E[i]=nn.Sigmoid()(SEG_E[i])
+            e_f = torch.cat([EDGES[0], EDGES[1], EDGES[2], EDGES[3], EDGES[4]], 1)
+            EDGES.append(self.fuse(e_f))
+
+            for i in range(6):
+                EDGES[i] = nn.Sigmoid()(EDGES[i])
+
+                return EDGES
 
 
 
 
-            SAL_E[i]=self.up1[i](SAL_E[i])
-            SAL_E[i] = nn.Sigmoid()(SAL_E[i])
+        if label == 'sal':
 
-            SAL_M[i]=self.up2[i](SAL_M[i])
-            SAL_M[i] = nn.Sigmoid()(SAL_M[i])
+            num=0
+            for k in range(len(self.base)):
+                x1 = self.base[k](x1)
 
-            SEG_SAL_M[i] = self.up5[i](SEG_SAL_M[i])
-            SEG_SAL_M[i] = nn.Sigmoid()(SEG_SAL_M[i])
+                if k in self.e_extract:
+                    xx.append(x1)
+                # edges.append()
+                # print(k,x.size())
+                if k in self.extract:
+                    if num < 2:
 
-            SEG_M[i] = self.up4[i](SEG_M[i])
-            SEG_M[i] = nn.functional.softmax(SEG_M[i],dim=1)
+                        edge = self.e_feat[num](xx[2 * num], xx[2 * num + 1])
+
+                    else:
+                        edge = self.e_feat[num](xx[num * 3 - 2], xx[num * 3 - 1], xx[num * 3])
+
+                    # edges.append(edge)
+
+
+                    (Y, seg_ed, seg_m, sal_m) = self.seg_feat[num](x1, edge)
+                    (s_e,s_m) = self.sal_feat[num](x1,seg_ed)
+
+                    FF.append(Y)
+
+                    SEG_SAL_M.append(sal_m)
+
+                    SAL_E.append(s_e)
+                    SAL_M.append(s_m)
+
+                    num += 1
+                    # side output
+                    # print(len(y3))
+
+            a, b, c = self.seg_feat[num](self.pool(x1))
+            FF.append(a)
+            SEG_SAL_M.append(c)
+            a, b = self.sal_feat[num](self.pool(x1))
+            SAL_E.append(a)
+            SAL_M.append(b)
+
+
+
+
+            for i in range(6):
+
+                SAL_M[i] = self.up2[i](SAL_M[i])
+                SAL_M[i] = nn.Sigmoid()(SAL_M[i])
+
+                SAL_E[i] = self.up1[i](SAL_E[i])
+                SAL_E[i] = nn.Sigmoid()(SAL_E[i])
+
+
+
+                SEG_SAL_M[i] = self.up5[i](SEG_SAL_M[i])
+                SEG_SAL_M[i] = nn.Sigmoid()(SEG_SAL_M[i])
+
+
+
+            return FF,SEG_SAL_M, SAL_M,SAL_E
 
 
 
 
 
 
-        e_f = torch.cat([EDGES[0], EDGES[1], EDGES[2], EDGES[3], EDGES[4]], 1)
-        EDGES.append(self.fuse(e_f))
 
 
 
-        for i in range(6):
-            EDGES[i]=nn.Sigmoid()(EDGES[i])
+
+
 
 
 
@@ -525,34 +579,27 @@ class DSE(nn.Module):
         super(DSE, self).__init__()
         self.net = DSS(vgg(base['dss'], 3),sal_extra_layer(),e_extract_layer(),seg_extra_layer())
 
-    def forward(self, input1,input2,input3):
-        x = self.net(input1,input2,input3)
+    def forward(self, input,label):
+        x = self.net(input,label)
         return x
 
 
 
 
 if __name__ == '__main__':
-    net = DSE()
+    net = DSE().cuda()
 
 
 
-    net2 = D_U(C)
+    net2 = D_U(C).cuda()
 
 
-    x = Variable(torch.rand(1,3,256,256))
+    x = Variable(torch.rand(3,3,256,256)).cuda()
     x2 = Variable(torch.rand(1,3,256,256))
     x3 = Variable(torch.rand(1,3,256,256))
-    (FF,EDGES,SEG_SAL_M,SAL_E,SEG_SAL_M,SEG_M) = net(x,x2,x3)
-
+    (FF,DEG_M,SETG_E,SEG_SAL_M,SAL_M) = net(x,label = 'seg')
+    #(FF,SEG_SAL_M, SAL_M,SAL_E) = net(x,label = 'sal')
     SAL_E, SAL_M, SEG_M = net2(FF)
 
-
-    for i in EDGES:
-        print('edges:',i.shape)
-
-    for i in SEG_M:
-        print('seg_m',i.shape)
-
-    for i in SEG_M:
+    for i in FF:
         print(i.shape)
