@@ -260,11 +260,11 @@ class D_U(nn.ModuleList):
 
         #self.extract2_sal_m = nn.ConvTranspose2d(257, 1, 2, 2)
         self.extract2_sal_e = nn.ConvTranspose2d(128, 1, 2, 2)
-        self.extract2_seg = nn.ConvTranspose2d(128, cc, 2, 2)
+        self.extract2_seg_m = nn.ConvTranspose2d(128, cc, 2, 2)
 
         self.extract3_sal_m = nn.ConvTranspose2d(257, 1, 1, 1)
         #self.extract3_sal_e = nn.ConvTranspose2d(257, 1, 1, 1)
-        self.extract3_seg = nn.ConvTranspose2d(257, cc, 1, 1)
+        self.extract3_seg_m= nn.ConvTranspose2d(257, cc, 1, 1)
 
 
 
@@ -290,10 +290,10 @@ class D_U(nn.ModuleList):
 
         x4 = self.up3(torch.cat([features[1],x3],1))
         SAL_M.append(nn.Sigmoid()(self.extract3_sal_m(torch.cat([features[0],x4],1))))
-        SEG_M.append(nn.functional.softmax(self.extract3_seg_m(torch.cat([features[0],x4],1), 1)))
+        SEG_M.append(nn.functional.softmax(self.extract3_seg_m(torch.cat([features[0],x4], 1)),1))
 
 
-        return SAL_E.SAL_M,SEG_M
+        return SAL_E,SAL_M,SEG_M
 
 
 
@@ -543,10 +543,16 @@ if __name__ == '__main__':
     x = Variable(torch.rand(1,3,256,256))
     x2 = Variable(torch.rand(1,3,256,256))
     x3 = Variable(torch.rand(1,3,256,256))
-    (FF,EDGES,SEG_SAL_M,SAL_E,SEG_SAL_M,SEG_) = net(x,x2,x3)
+    (FF,EDGES,SEG_SAL_M,SAL_E,SEG_SAL_M,SEG_M) = net(x,x2,x3)
+
+    SAL_E, SAL_M, SEG_M = net2(FF)
 
 
-    m,e = net2(FF)
+    for i in EDGES:
+        print('edges:',i.shape)
 
-    for i in FF:
+    for i in SEG_M:
+        print('seg_m',i.shape)
+
+    for i in SEG_M:
         print(i.shape)
