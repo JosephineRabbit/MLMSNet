@@ -276,16 +276,16 @@ class D_U(nn.ModuleList):
         x1 = self.up0(x)
 
         SAL_M.append(nn.Sigmoid()(self.extract0_sal_e(x1)))
-        SEG_M.append(nn.functional.softmax(self.extract0_seg_m(x1, 1)))
+        SEG_M.append(nn.functional.softmax(self.extract0_seg_m(x1),1))
 
         x2 = self.up1(torch.cat([features[3],x1],1))
         SAL_M.append(nn.Sigmoid()(self.extract1_sal_m(x2)))
-        SEG_M.append(nn.functional.softmax(self.extract1_seg_m(x2, 1)))
+        SEG_M.append(nn.functional.softmax(self.extract1_seg_m(x2),1))
 
 
         x3 = self.up2(torch.cat([features[2],x2],1))
         SAL_E.append(nn.Sigmoid()(self.extract2_sal_e(x3)))
-        SEG_M.append(nn.functional.softmax(self.extract2_seg_m(x3, 1)))
+        SEG_M.append(nn.functional.softmax(self.extract2_seg_m(x3),1))
 
 
         x4 = self.up3(torch.cat([features[1],x3],1))
