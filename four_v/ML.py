@@ -281,7 +281,7 @@ if __name__ == '__main__':
 
     x = Variable(torch.rand(1,3,256,256)).cuda()
     (out,y1,y2) = net(x)
-    su_e = Super_e(y2[0],y2[2],y2[4])
+    
     m,e= net2(out)
     print(len(e))
 
