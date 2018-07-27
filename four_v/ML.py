@@ -220,15 +220,20 @@ class DSS(nn.Module):
 
         for i in range(6):
             e.append(self.up[i](y1[i]))
-            e[i] = nn.Sigmoid()(e[i])
+            #e[i] = nn.Sigmoid()(e[i])
             #print(1,y1[i].size())
 
         for i in range(6):
             m.append(self.up2[i](y2[i]))
-            m[i] = nn.Sigmoid()(m[i])
+            #m[i] = nn.Sigmoid()(m[i])
             #print(i)
 
+        e.append((e[0]+e[2]+e[4])/3)
+        m.append((m[1]+m[3]+m[5])/3)
 
+        for i in range(7):
+            e[i]=nn.Sigmoid()(e[i])
+            m[i]=nn.Sigmoid()(m[i])
 
 
         return (y,m,e)
@@ -267,8 +272,7 @@ if __name__ == '__main__':
     net = DSE()
     #net.train()
     net.cuda()
-    Super_e= R_S_e().cuda()
-    SUper_m = R_S_m().cuda()
+
 
 
     net2 = D_U().cuda()
