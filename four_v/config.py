@@ -1,8 +1,6 @@
 # -*- coding:utf-8 -*-
 import os
-import torch
 from torchvision import models
-
 from numpy import random
 import time, pickle
 import torch
@@ -11,20 +9,10 @@ from torch.autograd import Variable
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
-
 import numpy as np
 
 
-# from gan import *from torch.optim.lr_scheduler import StepLR, MultiStepLR
-import os
-from torch.autograd import Variable
-#from visdom import Visdom
 
-
-
-
-import time
-import torch
 U_LEARNING_RATE=3e-5
 NN =8
 
