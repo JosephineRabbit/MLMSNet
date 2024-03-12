@@ -6,4 +6,4 @@ The project is being repairing. The revised code and paper is coming soon...
 The revised performance is shown as following:
 
 
-![截屏2024-03-13 01.14.34.png]
+![image](https://github.com/JosephineRabbit/MLMSNet/blob/master/%E6%88%AA%E5%B1%8F2024-03-13%2001.14.34.png)
