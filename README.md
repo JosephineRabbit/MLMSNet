@@ -6,7 +6,7 @@ The project is being repairing. The revised code and paper is coming soon...
 The revised performance is shown as follows:
 
 
-![image](https://github.com/JosephineRabbit/MLMSNet/blob/master/%E6%88%AA%E5%B1%8F2024-03-13%2015.40.13.png)
+![image](https://github.com/JosephineRabbit/MLMSNet/blob/master/截屏2024-03-23%2001.32.34.png)
 
 The Ablation Study results is as follows:
 ![image](https://github.com/JosephineRabbit/MLMSNet/blob/master/%E6%88%AA%E5%B1%8F2024-03-13%2017.40.45.png)
