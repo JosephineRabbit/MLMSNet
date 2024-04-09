@@ -11,6 +11,6 @@ The revised performance is shown as follows:
 The Ablation Study results is as follows:
 
 
-![image](https://github.com/JosephineRabbit/MLMSNet/blob/master/截屏2024-04-09%2023.38.58.png)
+![image](https://github.com/JosephineRabbit/MLMSNet/blob/master/截屏2024-04-09%2023.43.28.png)
 ![image](https://github.com/JosephineRabbit/MLMSNet/blob/master/截屏2024-04-09%2023.43.28.png)
 edge module still under debug, the speed can achieve the sofa performance, waiting for quality evaluation.
