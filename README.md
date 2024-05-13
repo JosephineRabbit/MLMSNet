@@ -15,11 +15,11 @@ The Ablation Study results is as follows:
 ![image](https://github.com/JosephineRabbit/MLMSNet/blob/master/截屏2024-04-09%2023.38.54.png)
 
 
-#to test and evaluate:
+# to test and evaluate:
 please download this ckpt https://drive.google.com/file/d/1mbPpDQbCidqrqtU5cBY6McYp5APSkCKd/view?usp=sharing 
 
 and then run the mlmsney_py/test.py 
 
-#evaluate:
+# evaluate:
 
 run Saliency-Evaluation-Toolbox-master/sal_eval.py
