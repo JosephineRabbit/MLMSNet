@@ -152,6 +152,7 @@ for dataset  in dataset_names:
             #img_batch = img_batch.cpu().numpy()[0,:,:,:]
             #print(np.shape(img_batch))
             #img = np.transpose(img_batch, [1, 2, 0])
+            mask=(mask >= 0.5).astype(np.float32)
 
             #img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             g_t=label_batch
